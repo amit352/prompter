@@ -1,0 +1,8 @@
+---
+app_name: my-app
+use_database: true
+database_config:
+  db_type: PostgreSQL
+  db_host: localhost
+  db_port: 5432
+deployment: deploy_gcp.sh

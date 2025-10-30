@@ -13,7 +13,7 @@ module Prompter
     end
 
     def run
-      puts "🧾 Starting Prompter for: #{@schema_path}\n\n"
+      puts "Starting Prompter for: #{@schema_path}\n\n"
       @schema.each do |key, config|
         next unless should_ask?(config)
         value = ask_question(key, config)
@@ -44,7 +44,7 @@ module Prompter
       qtype = config["type"] || "string"
       prompt_text = config["prompt"] || key
       default = config["default"]
-      options = config["options"]
+      options = config["options"] || config["choices"]
       help = config["help"]
       required = config["required"]
       source = config["source"]
@@ -54,7 +54,7 @@ module Prompter
       transform = config["transform"]
 
       options ||= load_source(source)
-      puts "💡 #{help}" if help
+      puts "#{help}" if help
 
       value =
         case qtype
@@ -128,7 +128,7 @@ module Prompter
         []
       end
     rescue StandardError => e
-      puts "⚠️  Source load error: #{e.message}"
+      puts "Source load error: #{e.message}"
       []
     end
 
@@ -136,12 +136,13 @@ module Prompter
       return unless rule
       if rule.is_a?(String) && rule.start_with?("/")
         regex = Regexp.new(rule[1..-2])
-        question.validate(regex)
-      elsif rule.start_with?("->")
+        question.validate(->(input) { input.match?(regex) }, "Invalid format")
+      elsif rule.is_a?(String) && rule.start_with?("->")
         fn = eval(rule)
-        question.validate("Invalid input", &fn)
+        question.validate(fn, "Invalid input")
       end
-    rescue StandardError
+    rescue StandardError => e
+      puts "Validation setup error: #{e.message}"
       nil
     end
   end
