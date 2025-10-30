@@ -1,0 +1,69 @@
+# Example schema demonstrating the processor feature
+#
+# This schema shows how to use custom processors to dynamically
+# generate options based on user's previous answers.
+#
+# To run this example:
+#   1. Ensure features.yml exists in the same directory
+#   2. Load the processor: ruby -r ./examples/processors/feature_flag_processor.rb
+#   3. Run: ruby -Ilib bin/prompter examples/processor_test.yml output.yml
+
+project_name:
+  type: string
+  prompt: "What is your project name?"
+  required: true
+  validate: "/^[a-z0-9-]+$/"
+  help: "Use lowercase letters, numbers, and hyphens only"
+
+release_version:
+  type: select
+  prompt: "Select your release version"
+  options:
+    - "3.1.5.1"
+    - "3.1.5.3"
+    - "3.2.0.0"
+  required: true
+  help: "Available feature flags depend on your release version"
+
+# This field uses the processor to dynamically load options
+# based on the selected release_version above
+feature_flags:
+  type: multi_select
+  prompt: "Select feature flags to enable"
+  source:
+    type: "processor"
+    class: "FeatureFlagProcessor"
+    method: "filter_by_release"
+    data_file: "examples/features.yml"
+  help: "Use spacebar to select multiple flags. Available flags are filtered by your release version."
+
+environment:
+  type: select
+  prompt: "Select deployment environment"
+  options:
+    - "development"
+    - "staging"
+    - "production"
+  default: "development"
+
+enable_monitoring:
+  type: boolean
+  prompt: "Enable monitoring?"
+  default: true
+
+# Conditional field - only shown if monitoring is enabled
+monitoring_config:
+  type: hash
+  prompt: "Monitoring Configuration"
+  skip_if: "->(answers) { answers['enable_monitoring'] == false }"
+  children:
+    monitoring_interval:
+      type: integer
+      prompt: "Monitoring interval in seconds"
+      default: 60
+
+    alert_email:
+      type: string
+      prompt: "Alert notification email"
+      validate: "/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$/"
+      required: true

@@ -124,11 +124,42 @@ module Prompter
       when "proc"
         fn = eval(source["proc"])
         fn.call
+      when "processor"
+        load_from_processor(source)
       else
         []
       end
     rescue StandardError => e
       puts "Source load error: #{e.message}"
+      []
+    end
+
+    def load_from_processor(source)
+      class_name = source["class"]
+      method_name = source["method"]
+
+      raise "Processor class name is required" unless class_name
+      raise "Processor method name is required" unless method_name
+
+      # Get the processor class
+      processor_class = Object.const_get(class_name)
+
+      # Prepare config hash (all source params except type, class, method)
+      config = source.reject { |k, _| ["type", "class", "method"].include?(k) }
+
+      # Call the processor method with answers and config
+      processor_class.public_send(method_name, answers: @answers, config: config)
+    rescue NameError => e
+      puts "Processor class '#{class_name}' not found. Make sure it's defined and loaded."
+      puts "Error: #{e.message}"
+      []
+    rescue NoMethodError => e
+      puts "Method '#{method_name}' not found on #{class_name}."
+      puts "Error: #{e.message}"
+      []
+    rescue StandardError => e
+      puts "Processor error: #{e.message}"
+      puts e.backtrace.first(3).join("\n  ")
       []
     end
 
