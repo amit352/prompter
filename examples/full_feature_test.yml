@@ -1,0 +1,189 @@
+# Comprehensive test schema demonstrating all Prompter features
+
+# Basic string input with validation
+project_name:
+  type: string
+  prompt: "What is your project name?"
+  default: "my-awesome-project"
+  validate: "/^[a-z0-9-]+$/"
+  help: "Use lowercase letters, numbers, and hyphens only"
+  required: true
+
+# Integer input with conversion
+max_connections:
+  type: integer
+  prompt: "Maximum number of concurrent connections?"
+  default: 100
+  help: "Recommended range: 50-500"
+
+# String input with confirmation
+api_key:
+  type: string
+  prompt: "Enter your API key"
+  required: true
+  confirm: true
+  help: "This will be used to authenticate with external services"
+
+# Boolean input
+enable_caching:
+  type: boolean
+  prompt: "Enable caching?"
+  default: true
+  help: "Caching can significantly improve performance"
+
+# Select from files in a directory
+deployment_script:
+  type: select
+  prompt: "Choose a deployment script"
+  source:
+    type: "files"
+    path: "./testing/sample_scripts"
+  help: "Select the script that matches your deployment target"
+
+# Select from YAML file
+environment:
+  type: select
+  prompt: "Select deployment environment"
+  source:
+    type: "yaml"
+    path: "./testing/data/environments.yml"
+  help: "Each environment has different configurations"
+
+# Multi-select with static options
+features:
+  type: multi_select
+  prompt: "Which features do you want to enable?"
+  options:
+    - "Authentication"
+    - "Logging"
+    - "Monitoring"
+    - "Rate Limiting"
+    - "WebSocket Support"
+  default: ["Authentication", "Logging"]
+  help: "You can select multiple features using spacebar"
+
+# String with transformation
+domain_name:
+  type: string
+  prompt: "Enter your domain name"
+  default: "example.com"
+  transform: "->(val) { val.downcase.strip }"
+  validate: "/^[a-z0-9.-]+$/"
+  help: "Domain will be automatically converted to lowercase"
+
+# Numeric input with float conversion
+timeout_seconds:
+  type: string
+  prompt: "Request timeout in seconds"
+  default: "30.5"
+  convert: "float"
+  validate: "->(val) { val.to_f > 0 && val.to_f < 300 }"
+  help: "Must be between 0 and 300 seconds"
+
+# Conditional field - only shown if caching is enabled
+cache_config:
+  type: hash
+  prompt: "Cache Configuration"
+  skip_if: "->(answers) { answers['enable_caching'] == false }"
+  children:
+    cache_type:
+      type: select
+      prompt: "Select cache backend"
+      options:
+        - "Redis"
+        - "Memcached"
+        - "In-Memory"
+      default: "Redis"
+
+    cache_ttl:
+      type: integer
+      prompt: "Cache TTL (time to live) in seconds"
+      default: 3600
+      help: "How long items should remain in cache"
+
+    cache_size_mb:
+      type: integer
+      prompt: "Maximum cache size in MB"
+      default: 512
+
+# Conditional field - only shown if Authentication feature is selected
+auth_settings:
+  type: hash
+  prompt: "Authentication Settings"
+  skip_if: "->(answers) { !answers['features']&.include?('Authentication') }"
+  children:
+    auth_provider:
+      type: select
+      prompt: "Choose authentication provider"
+      options:
+        - "OAuth2"
+        - "JWT"
+        - "SAML"
+        - "Basic Auth"
+      default: "JWT"
+
+    session_duration:
+      type: integer
+      prompt: "Session duration in minutes"
+      default: 60
+
+    require_mfa:
+      type: boolean
+      prompt: "Require multi-factor authentication?"
+      default: false
+
+# Conditional field - only shown if Logging feature is selected
+logging_config:
+  type: hash
+  prompt: "Logging Configuration"
+  skip_if: "->(answers) { !answers['features']&.include?('Logging') }"
+  children:
+    log_level:
+      type: select
+      prompt: "Select log level"
+      options:
+        - "DEBUG"
+        - "INFO"
+        - "WARN"
+        - "ERROR"
+      default: "INFO"
+
+    log_format:
+      type: select
+      prompt: "Select log format"
+      options:
+        - "JSON"
+        - "Text"
+        - "Structured"
+      default: "JSON"
+
+    log_destination:
+      type: string
+      prompt: "Log file path"
+      default: "/var/log/app.log"
+
+# Select with proc source
+random_option:
+  type: select
+  prompt: "Pick a generated option"
+  source:
+    type: "proc"
+    proc: "->(){ ['Option-A', 'Option-B', 'Option-C', 'Option-D'] }"
+  help: "These options are generated dynamically"
+
+# String with complex regex validation
+email_address:
+  type: string
+  prompt: "Enter notification email"
+  validate: "/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$/"
+  required: true
+  help: "Must be a valid email address"
+
+# Port number with validation
+server_port:
+  type: string
+  prompt: "Server port number"
+  default: "8080"
+  convert: "int"
+  validate: "->(val) { val.to_i >= 1024 && val.to_i <= 65535 }"
+  help: "Must be between 1024 and 65535"

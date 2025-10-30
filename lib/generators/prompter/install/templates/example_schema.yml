@@ -1,0 +1,73 @@
+# Example Prompter Schema
+# This file demonstrates the various field types and options available in Prompter.
+# Customize this to create your own configuration prompts.
+
+# Simple string input with validation
+app_name:
+  type: string
+  prompt: "What is your application name?"
+  required: true
+  validate: "/^[a-z_]+$/"
+  default: my_app
+
+# Select from predefined choices
+environment:
+  type: select
+  prompt: "Select your environment:"
+  choices:
+    - development
+    - staging
+    - production
+  default: development
+
+# Boolean (yes/no) question
+enable_feature:
+  type: boolean
+  prompt: "Enable new feature?"
+  default: false
+
+# Integer input with validation
+max_connections:
+  type: integer
+  prompt: "Maximum number of connections:"
+  default: 10
+  validate: "->(val) { val > 0 && val <= 100 }"
+
+# Multiple selection
+features:
+  type: multi_select
+  prompt: "Select features to enable:"
+  choices:
+    - authentication
+    - logging
+    - monitoring
+    - caching
+    - api
+
+# Nested hash configuration
+database:
+  type: hash
+  prompt: "Database Configuration"
+  children:
+    host:
+      type: string
+      prompt: "Database host:"
+      default: localhost
+      required: true
+
+    port:
+      type: integer
+      prompt: "Database port:"
+      default: 5432
+
+    use_ssl:
+      type: boolean
+      prompt: "Use SSL for database connection?"
+      default: true
+
+# Conditional field (only shown if previous answer matches condition)
+ssl_cert_path:
+  type: string
+  prompt: "Path to SSL certificate:"
+  skip_if: "->(answers) { !answers.dig('database', 'use_ssl') }"
+  default: "/etc/ssl/certs"

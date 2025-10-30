@@ -1,11 +1,228 @@
 #!/usr/bin/env ruby
+# frozen_string_literal: true
+
 require "prompter"
 
-if ARGV.empty?
-  puts "Usage: prompter <schema.yml> [output.yml]"
-  exit(1)
+# Help message
+def show_help
+  puts <<~HELP
+    Prompter v#{Prompter::VERSION} - Interactive YAML-driven configuration prompting system
+
+    USAGE:
+      prompter [OPTIONS] <schema.yml> [output.yml]
+      prompter [OPTIONS]
+
+    DESCRIPTION:
+      Prompter reads a YAML schema file and interactively prompts users to
+      generate validated configuration files using TTY::Prompt.
+
+    OPTIONS:
+      -h, --help       Show this help message
+      -v, --version    Show version information
+      --examples       Show usage examples
+
+    ARGUMENTS:
+      schema.yml       Path to YAML schema file (required unless configured)
+      output.yml       Path to save generated configuration (optional)
+
+    EXAMPLES:
+      # Run with explicit schema and output paths
+      prompter config/schema.yml config/output.yml
+
+      # Run with schema only (prints to stdout)
+      prompter config/schema.yml
+
+      # Use configured defaults (requires configuration)
+      prompter
+
+    INSTALLATION & SETUP:
+      Rails projects:
+        rails generate prompter:install
+
+      Ruby projects:
+        rake prompter:install
+
+    CONFIGURATION:
+      Create an initializer or configuration file:
+
+      # Rails: config/initializers/prompter.rb
+      # Ruby:  config/prompter.rb
+
+      Prompter.configure do |config|
+        config.schema_path = "path/to/schema.yml"
+        config.output_path = "path/to/output.yml"
+      end
+
+    SCHEMA FILE FORMAT:
+      Define prompts in YAML format:
+
+      app_name:
+        type: string
+        prompt: "What is your application name?"
+        required: true
+        validate: "/^[a-z_]+$/"
+
+      environment:
+        type: select
+        prompt: "Select environment:"
+        choices:
+          - development
+          - staging
+          - production
+
+    FIELD TYPES:
+      string        Text input
+      integer       Numeric input
+      boolean       Yes/No questions
+      select        Single choice from list
+      multi_select  Multiple choices from list
+      hash          Nested configuration with children
+
+    FIELD OPTIONS:
+      prompt        Question text shown to user
+      type          Field type (required)
+      default       Default value
+      required      Whether input is mandatory
+      validate      Regex pattern or lambda validation
+      transform     Lambda to transform user input
+      convert       Type conversion (int, float)
+      confirm       Ask user to confirm value
+      skip_if       Conditional logic to skip field
+      source        Load options dynamically (files, yaml, proc)
+      children      For hash type, nested field definitions
+
+    MORE INFORMATION:
+      Schema Guide:  SCHEMA_GUIDE.md (complete tutorials and patterns)
+      Quick Ref:     QUICK_REFERENCE.md (printable cheat sheet)
+      Examples:      examples/ directory in gem installation
+      Documentation: https://github.com/yourusername/prompter
+      Issues:        https://github.com/yourusername/prompter/issues
+
+  HELP
 end
 
-schema_path = ARGV[0]
-output_path = ARGV[1]
-Prompter.run(schema_path, output_path)
+# Show version
+def show_version
+  puts "Prompter version #{Prompter::VERSION}"
+end
+
+# Show examples
+def show_examples
+  puts <<~EXAMPLES
+    Prompter Usage Examples
+
+    1. BASIC USAGE
+       prompter schema.yml output.yml
+
+    2. USING CONFIGURATION
+       # After running: rails generate prompter:install
+       # Or: rake prompter:install
+
+       # In Rails console or Ruby script:
+       Prompter.run
+
+    3. CONDITIONAL FIELDS
+       Schema with conditional logic:
+
+       use_ssl:
+         type: boolean
+         prompt: "Use SSL?"
+
+       ssl_cert_path:
+         type: string
+         prompt: "SSL certificate path:"
+         skip_if: "->(answers) { !answers['use_ssl'] }"
+
+    4. VALIDATION
+       With regex:
+       email:
+         type: string
+         prompt: "Enter email:"
+         validate: "/^[\\\\w+\\\\-.]+@[a-z\\\\d\\\\-.]+\\\\.[a-z]+$/i"
+
+       With lambda:
+       age:
+         type: integer
+         prompt: "Enter age:"
+         validate: "->(val) { val >= 18 && val <= 120 }"
+
+    5. NESTED CONFIGURATION
+       database:
+         type: hash
+         prompt: "Database Configuration"
+         children:
+           host:
+             type: string
+             prompt: "Database host:"
+             default: localhost
+           port:
+             type: integer
+             prompt: "Database port:"
+             default: 5432
+
+    6. DYNAMIC OPTIONS
+       Load from files:
+       theme:
+         type: select
+         prompt: "Select theme:"
+         source:
+           type: files
+           path: "themes/"
+           extension: ".yml"
+
+       Load from YAML:
+       region:
+         type: select
+         prompt: "Select region:"
+         source:
+           type: yaml
+           path: "data/regions.yml"
+
+    7. MULTI-SELECT
+       features:
+         type: multi_select
+         prompt: "Select features to enable:"
+         choices:
+           - authentication
+           - logging
+           - monitoring
+           - caching
+
+    8. TRANSFORMATION
+       Convert input to uppercase:
+       code:
+         type: string
+         prompt: "Enter code:"
+         transform: "->(val) { val.upcase }"
+
+    For more examples, see: examples/ directory
+
+  EXAMPLES
+end
+
+# Parse command line arguments
+case ARGV[0]
+when "-h", "--help", "help", nil
+  show_help
+  exit(0)
+when "-v", "--version", "version"
+  show_version
+  exit(0)
+when "--examples", "examples"
+  show_examples
+  exit(0)
+else
+  schema_path = ARGV[0]
+  output_path = ARGV[1]
+
+  begin
+    Prompter.run(schema_path, output_path)
+  rescue ArgumentError => e
+    puts "Error: #{e.message}"
+    puts "\nRun 'prompter --help' for usage information"
+    exit(1)
+  rescue => e
+    puts "Error: #{e.message}"
+    exit(1)
+  end
+end

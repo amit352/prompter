@@ -1,0 +1,25 @@
+Description:
+    The prompter:install generator creates an initializer file and example
+    schema files for the Prompter gem in your Rails application.
+
+    This will create:
+    1. config/initializers/prompter.rb - Configuration initializer
+    2. config/prompts/ - Directory for your prompt schema files
+    3. config/prompts/example_schema.yml - Example schema file
+
+Next Steps:
+    1. Review the initializer at config/initializers/prompter.rb
+    2. Customize config/prompts/example_schema.yml or create your own
+    3. Run Prompter from Rails console:
+
+       rails console
+       > Prompter.run
+
+    4. Or use a custom schema:
+
+       > Prompter.run('config/prompts/my_schema.yml')
+
+For more information:
+    - See example schemas in the gem's examples/ directory
+    - Visit the project repository for documentation
+    - Run `Prompter.run` in Rails console to test your configuration

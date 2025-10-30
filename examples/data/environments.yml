@@ -1,0 +1,19 @@
+development:
+  description: "Local development environment"
+  url: "http://localhost:3000"
+  database: "dev_db"
+
+staging:
+  description: "Staging environment for testing"
+  url: "https://staging.example.com"
+  database: "staging_db"
+
+production:
+  description: "Production environment"
+  url: "https://example.com"
+  database: "prod_db"
+
+qa:
+  description: "QA testing environment"
+  url: "https://qa.example.com"
+  database: "qa_db"

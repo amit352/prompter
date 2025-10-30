@@ -1,0 +1,27 @@
+---
+project_name: my-awesome-project
+max_connections: 100
+enable_caching: true
+deployment_script: deploy_gcp.sh
+environment: development
+features:
+- Authentication
+- Logging
+- Rate Limiting
+domain_name: example.com
+timeout_seconds: 30.5
+cache_config:
+  cache_type: Redis
+  cache_ttl: 3600
+  cache_size_mb: 512
+auth_settings:
+  auth_provider: JWT
+  session_duration: 60
+  require_mfa: false
+logging_config:
+  log_level: INFO
+  log_format: JSON
+  log_destination: "/var/log/app.log"
+random_option: Option-B
+email_address: kumar352@gmail.com
+server_port: 8080

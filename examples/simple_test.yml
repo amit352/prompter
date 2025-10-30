@@ -1,0 +1,43 @@
+# Simple test schema for quick testing
+
+app_name:
+  type: string
+  prompt: "What is your application name?"
+  default: "my-app"
+  required: true
+
+use_database:
+  type: boolean
+  prompt: "Do you need a database?"
+  default: true
+
+database_config:
+  type: hash
+  prompt: "Database Configuration"
+  skip_if: "->(answers) { answers['use_database'] == false }"
+  children:
+    db_type:
+      type: select
+      prompt: "Select database type"
+      options:
+        - "PostgreSQL"
+        - "MySQL"
+        - "SQLite"
+      default: "PostgreSQL"
+
+    db_host:
+      type: string
+      prompt: "Database host"
+      default: "localhost"
+
+    db_port:
+      type: integer
+      prompt: "Database port"
+      default: 5432
+
+deployment:
+  type: select
+  prompt: "Choose deployment script"
+  source:
+    type: "files"
+    path: "./testing/sample_scripts"
