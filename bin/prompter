@@ -1,0 +1,11 @@
+#!/usr/bin/env ruby
+require "prompter"
+
+if ARGV.empty?
+  puts "Usage: prompter <schema.yml> [output.yml]"
+  exit(1)
+end
+
+schema_path = ARGV[0]
+output_path = ARGV[1]
+Prompter.run(schema_path, output_path)

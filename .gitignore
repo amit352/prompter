@@ -1,0 +1,30 @@
+# === Ruby / Bundler ===
+.bundle/
+vendor/
+pkg/
+build/
+
+# === Gems ===
+*.gem
+Gemfile.lock
+
+# === Logs / Temp ===
+log/
+tmp/
+coverage/
+.rspec_status
+
+# === Editors ===
+.idea/
+.vscode/
+*.swp
+*.swo
+*.bak
+*.orig
+*~
+.DS_Store
+
+# === Tests ===
+spec/examples.txt
+spec/reports/
+

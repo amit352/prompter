@@ -1,0 +1,32 @@
+release_number:
+  type: string
+  prompt: "Enter the release number"
+  default: "1.0.0"
+  validate: "/^\\d+\\.\\d+\\.\\d+$/"
+  help: "Use semantic versioning"
+
+deploy_script:
+  type: select
+  prompt: "Choose deployment script"
+  source:
+    type: "files"
+    path: "./scripts"
+
+enable_login:
+  type: boolean
+  prompt: "Enable user login?"
+  default: true
+
+login_config:
+  type: hash
+  prompt: "Login configuration"
+  skip_if: "->(answers){ answers['enable_login'] == false }"
+  children:
+    username:
+      type: string
+      prompt: "Enter default admin username"
+      default: "admin"
+    password:
+      type: string
+      prompt: "Enter admin password"
+      required: true
