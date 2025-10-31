@@ -1,0 +1,8 @@
+# Ignore output files
+output.yml
+*.output.yml
+generated_*.yml
+
+# Keep schema files
+!schema.yml
+!*.schema.yml
