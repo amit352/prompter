@@ -68,7 +68,7 @@ module Prompter
       end
     end
 
-    def ask_question(key, config)
+    def ask_question(key, config, parent_key = nil)
       qtype = config["type"] || "string"
       prompt_text = config["prompt"] || key
       default = config["default"]
@@ -99,7 +99,7 @@ module Prompter
         when "multi_select"
           prompt.multi_select(prompt_text, options, default: Array(default))
         when "hash"
-          ask_hash(prompt_text, config["children"])
+          ask_hash(key, prompt_text, config["children"])
         else
           prompt.ask(prompt_text, default: default)
         end
@@ -128,13 +128,21 @@ module Prompter
       value
     end
 
-    def ask_hash(prompt_text, children)
+    def ask_hash(parent_key, prompt_text, children)
       puts "\n#{prompt_text}:"
+
+      # Initialize parent hash in answers so children can access siblings via dig
+      @answers[parent_key] = {} unless @answers[parent_key]
+
       result = {}
       children.each do |k, v|
         next unless should_ask?(v)
-        val = ask_question(k, v)
-        result[k] = val unless val.nil?
+        val = ask_question(k, v, parent_key)
+        unless val.nil?
+          result[k] = val
+          # Update @answers so subsequent children can access this via dig
+          @answers[parent_key][k] = val
+        end
       end
       result
     end
