@@ -14,19 +14,47 @@ module Prompter
 
     def run
       puts "Starting Prompter for: #{@schema_path}\n\n"
-      @schema.each do |key, config|
-        next unless should_ask?(config)
-        value = ask_question(key, config)
-        @answers[key] = value unless value.nil?
+      puts "Press Ctrl+C at any time to exit\n\n"
+
+      begin
+        @schema.each do |key, config|
+          next unless should_ask?(config)
+          value = ask_question(key, config)
+          @answers[key] = value unless value.nil?
+        end
+
+        puts "\n Final Answers:"
+        @answers.each { |k, v| puts "  #{k}: #{v}" }
+
+        @answers
+      rescue Interrupt
+        handle_interrupt
       end
-
-      puts "\n Final Answers:"
-      @answers.each { |k, v| puts "  #{k}: #{v}" }
-
-      @answers
     end
 
     private
+
+    def handle_interrupt
+      puts "\n\nInterrupted by user!"
+      puts "\nCurrent answers:"
+      @answers.each { |k, v| puts "  #{k}: #{v}" }
+
+      choice = @prompt.select("\nWhat would you like to do?", [
+        { name: "Save partial results and exit", value: :save },
+        { name: "Exit without saving", value: :exit }
+      ])
+
+      if choice == :save
+        puts "\nPartial results will be saved."
+        @answers
+      else
+        puts "\nExiting without saving."
+        exit(1)
+      end
+    rescue Interrupt
+      puts "\n\nForce exit. No data saved."
+      exit(1)
+    end
 
     def should_ask?(config)
       skip_if = config["skip_if"]
@@ -104,6 +132,7 @@ module Prompter
       puts "\n#{prompt_text}:"
       result = {}
       children.each do |k, v|
+        next unless should_ask?(v)
         val = ask_question(k, v)
         result[k] = val unless val.nil?
       end
