@@ -14,19 +14,47 @@ module Prompter
 
     def run
       puts "Starting Prompter for: #{@schema_path}\n\n"
-      @schema.each do |key, config|
-        next unless should_ask?(config)
-        value = ask_question(key, config)
-        @answers[key] = value unless value.nil?
+      puts "Press Ctrl+C at any time to exit\n\n"
+
+      begin
+        @schema.each do |key, config|
+          next unless should_ask?(config)
+          value = ask_question(key, config)
+          @answers[key] = value unless value.nil?
+        end
+
+        puts "\n Final Answers:"
+        @answers.each { |k, v| puts "  #{k}: #{v}" }
+
+        @answers
+      rescue Interrupt
+        handle_interrupt
       end
-
-      puts "\n Final Answers:"
-      @answers.each { |k, v| puts "  #{k}: #{v}" }
-
-      @answers
     end
 
     private
+
+    def handle_interrupt
+      puts "\n\nInterrupted by user!"
+      puts "\nCurrent answers:"
+      @answers.each { |k, v| puts "  #{k}: #{v}" }
+
+      choice = @prompt.select("\nWhat would you like to do?", [
+        { name: "Save partial results and exit", value: :save },
+        { name: "Exit without saving", value: :exit }
+      ])
+
+      if choice == :save
+        puts "\nPartial results will be saved."
+        @answers
+      else
+        puts "\nExiting without saving."
+        exit(1)
+      end
+    rescue Interrupt
+      puts "\n\nForce exit. No data saved."
+      exit(1)
+    end
 
     def should_ask?(config)
       skip_if = config["skip_if"]
@@ -40,7 +68,7 @@ module Prompter
       end
     end
 
-    def ask_question(key, config)
+    def ask_question(key, config, parent_key = nil)
       qtype = config["type"] || "string"
       prompt_text = config["prompt"] || key
       default = config["default"]
@@ -71,7 +99,7 @@ module Prompter
         when "multi_select"
           prompt.multi_select(prompt_text, options, default: Array(default))
         when "hash"
-          ask_hash(prompt_text, config["children"])
+          ask_hash(key, prompt_text, config["children"])
         else
           prompt.ask(prompt_text, default: default)
         end
@@ -100,12 +128,21 @@ module Prompter
       value
     end
 
-    def ask_hash(prompt_text, children)
+    def ask_hash(parent_key, prompt_text, children)
       puts "\n#{prompt_text}:"
+
+      # Initialize parent hash in answers so children can access siblings via dig
+      @answers[parent_key] = {} unless @answers[parent_key]
+
       result = {}
       children.each do |k, v|
-        val = ask_question(k, v)
-        result[k] = val unless val.nil?
+        next unless should_ask?(v)
+        val = ask_question(k, v, parent_key)
+        unless val.nil?
+          result[k] = val
+          # Update @answers so subsequent children can access this via dig
+          @answers[parent_key][k] = val
+        end
       end
       result
     end
@@ -124,11 +161,42 @@ module Prompter
       when "proc"
         fn = eval(source["proc"])
         fn.call
+      when "processor"
+        load_from_processor(source)
       else
         []
       end
     rescue StandardError => e
       puts "Source load error: #{e.message}"
+      []
+    end
+
+    def load_from_processor(source)
+      class_name = source["class"]
+      method_name = source["method"]
+
+      raise "Processor class name is required" unless class_name
+      raise "Processor method name is required" unless method_name
+
+      # Get the processor class
+      processor_class = Object.const_get(class_name)
+
+      # Prepare config hash (all source params except type, class, method)
+      config = source.reject { |k, _| ["type", "class", "method"].include?(k) }
+
+      # Call the processor method with answers and config
+      processor_class.public_send(method_name, answers: @answers, config: config)
+    rescue NameError => e
+      puts "Processor class '#{class_name}' not found. Make sure it's defined and loaded."
+      puts "Error: #{e.message}"
+      []
+    rescue NoMethodError => e
+      puts "Method '#{method_name}' not found on #{class_name}."
+      puts "Error: #{e.message}"
+      []
+    rescue StandardError => e
+      puts "Processor error: #{e.message}"
+      puts e.backtrace.first(3).join("\n  ")
       []
     end
 

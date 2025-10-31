@@ -1,0 +1,14 @@
+feature_flags:
+  releases:
+    "3.1.5.0":
+      - flag1
+      - flag2
+    "3.1.5.1":
+      - flag3
+      - flag4
+    "3.1.5.2":
+      - flag5
+      - flag6
+    "3.1.5.3":
+      - flag7
+      - flag8
