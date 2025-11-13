@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  prompter:
+    build: .
+    container_name: prompter
+    volumes:
+      # Mount deployment folder to allow editing schema and accessing output
+      - ./deployment:/app/deployment
+    stdin_open: true
+    tty: true
+    environment:
+      - TERM=xterm-256color
+    command: prompter schema.yml output.yml
+
+  # Interactive shell service for development
+  prompter-shell:
+    build: .
+    container_name: prompter-shell
+    volumes:
+      - ./deployment:/app/deployment
+    stdin_open: true
+    tty: true
+    environment:
+      - TERM=xterm-256color
+    entrypoint: /bin/bash
+    profiles:
+      - dev

@@ -1,0 +1,59 @@
+# Test schema to verify skip_if works in nested children
+
+enable_database:
+  type: boolean
+  prompt: "Enable database?"
+  default: false
+  help: "This controls whether database configuration is shown"
+
+database_config:
+  type: hash
+  prompt: "Database Configuration"
+  skip_if: "->(answers) { answers['enable_database'] == false }"
+  children:
+    db_type:
+      type: select
+      prompt: "Select database type"
+      options:
+        - "PostgreSQL"
+        - "MySQL"
+        - "SQLite"
+      default: "PostgreSQL"
+
+    db_host:
+      type: string
+      prompt: "Database host"
+      default: "localhost"
+      required: true
+
+    # This child should be skipped if PostgreSQL is selected
+    db_port:
+      type: integer
+      prompt: "Database port"
+      default: 3306
+      skip_if: "->(answers) { answers['db_type'] == 'PostgreSQL' }"
+
+    # This child should be skipped if MySQL or PostgreSQL is selected
+    db_file:
+      type: string
+      prompt: "Database file path"
+      default: "db/database.sqlite3"
+      skip_if: "->(answers) { answers['db_type'] != 'SQLite' }"
+
+    db_username:
+      type: string
+      prompt: "Database username"
+      default: "admin"
+      required: true
+      skip_if: "->(answers) { answers['db_type'] == 'SQLite' }"
+
+    db_password:
+      type: string
+      prompt: "Database password"
+      required: true
+      skip_if: "->(answers) { answers['db_type'] == 'SQLite' }"
+
+enable_caching:
+  type: boolean
+  prompt: "Enable caching?"
+  default: true

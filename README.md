@@ -69,6 +69,23 @@ prompter --version   # Version info
 
 ## Installation
 
+### Using Docker (Recommended for Quick Start)
+
+The fastest way to try Prompter:
+
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/prompter.git
+cd prompter
+
+# Run with Docker Compose
+docker-compose run --rm prompter
+```
+
+See [DOCKER.md](DOCKER.md) for complete Docker documentation.
+
+### Using RubyGems
+
 Add this line to your application's Gemfile:
 
 ```ruby
@@ -88,6 +105,26 @@ gem install prompter
 ```
 
 ## Quick Start
+
+### Docker Quick Start
+
+```bash
+# Run with default schema in deployment folder
+docker-compose run --rm prompter
+
+# Run with custom schema
+docker-compose run --rm prompter my-schema.yml my-output.yml
+
+# Access development shell
+docker-compose run --rm --profile dev prompter-shell
+```
+
+The `deployment/` folder is mounted as a volume, allowing you to:
+- Edit `deployment/schema.yml` with your favorite editor
+- Run Prompter in Docker
+- Get output in `deployment/output.yml`
+
+See [deployment/README.md](deployment/README.md) for more details.
 
 ### Rails Projects
 

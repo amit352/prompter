@@ -1,0 +1,44 @@
+# Git files
+.git
+.gitignore
+
+# Documentation
+*.md
+!README.md
+
+# Examples (not needed in container)
+examples/demo_output.yml
+examples/output.yml
+examples/*.output.yml
+
+# Test files
+spec/
+.rspec
+
+# Deployment outputs (schema is copied)
+deployment/output.yml
+deployment/*.output.yml
+deployment/generated_*.yml
+
+# Development files
+.bundle/
+vendor/bundle/
+*.gem
+.rake_tasks
+.yardoc/
+doc/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+tmp/
+*.log
