@@ -1,0 +1,187 @@
+# Prompter Default Schema
+# This is the default configuration schema for Prompter
+# Customize this file to create your own interactive configuration prompts
+
+# Basic project information
+project_name:
+  type: string
+  prompt: "What is your project name?"
+  required: true
+  validate: "/^[a-z0-9-_]+$/"
+  help: "Use lowercase letters, numbers, hyphens, and underscores only"
+
+environment:
+  type: select
+  prompt: "Select your environment"
+  options:
+    - "development"
+    - "staging"
+    - "production"
+  default: "development"
+  help: "Choose the target environment for this configuration"
+
+# Feature toggles
+enable_database:
+  type: boolean
+  prompt: "Enable database configuration?"
+  default: true
+  help: "Set to true if your application uses a database"
+
+# Database configuration (conditional)
+database_config:
+  type: hash
+  prompt: "Database Configuration"
+  skip_if: "->(answers) { answers['enable_database'] == false }"
+  children:
+    db_type:
+      type: select
+      prompt: "Select database type"
+      options:
+        - "PostgreSQL"
+        - "MySQL"
+        - "SQLite"
+        - "MongoDB"
+      default: "PostgreSQL"
+      help: "Choose your database system"
+
+    db_host:
+      type: string
+      prompt: "Database host"
+      default: "localhost"
+      required: true
+      skip_if: "->(answers) { answers.dig('database_config', 'db_type') == 'SQLite' }"
+
+    db_port:
+      type: integer
+      prompt: "Database port"
+      default: 5432
+      skip_if: "->(answers) { answers.dig('database_config', 'db_type') == 'SQLite' }"
+
+    db_name:
+      type: string
+      prompt: "Database name"
+      required: true
+      default: "myapp_db"
+
+    db_username:
+      type: string
+      prompt: "Database username"
+      required: true
+      default: "postgres"
+      skip_if: "->(answers) { answers.dig('database_config', 'db_type') == 'SQLite' }"
+
+    db_password:
+      type: string
+      prompt: "Database password"
+      required: true
+      skip_if: "->(answers) { answers.dig('database_config', 'db_type') == 'SQLite' }"
+
+# Caching configuration
+enable_caching:
+  type: boolean
+  prompt: "Enable caching?"
+  default: true
+  help: "Caching can significantly improve performance"
+
+cache_config:
+  type: hash
+  prompt: "Cache Configuration"
+  skip_if: "->(answers) { answers['enable_caching'] == false }"
+  children:
+    cache_type:
+      type: select
+      prompt: "Select cache backend"
+      options:
+        - "Redis"
+        - "Memcached"
+        - "In-Memory"
+      default: "Redis"
+
+    cache_host:
+      type: string
+      prompt: "Cache host"
+      default: "localhost"
+      skip_if: "->(answers) { answers.dig('cache_config', 'cache_type') == 'In-Memory' }"
+
+    cache_port:
+      type: integer
+      prompt: "Cache port"
+      default: 6379
+      skip_if: "->(answers) { answers.dig('cache_config', 'cache_type') == 'In-Memory' }"
+
+    cache_ttl:
+      type: integer
+      prompt: "Cache TTL (seconds)"
+      default: 3600
+      help: "Time to live for cached items"
+
+# Logging configuration
+log_level:
+  type: select
+  prompt: "Select log level"
+  options:
+    - "DEBUG"
+    - "INFO"
+    - "WARN"
+    - "ERROR"
+  default: "INFO"
+  help: "Controls verbosity of application logs"
+
+# Security settings
+enable_ssl:
+  type: boolean
+  prompt: "Enable SSL/TLS?"
+  default: true
+
+ssl_config:
+  type: hash
+  prompt: "SSL Configuration"
+  skip_if: "->(answers) { answers['enable_ssl'] == false }"
+  children:
+    cert_path:
+      type: string
+      prompt: "SSL certificate path"
+      default: "/etc/ssl/certs/server.crt"
+      required: true
+
+    key_path:
+      type: string
+      prompt: "SSL private key path"
+      default: "/etc/ssl/private/server.key"
+      required: true
+
+# Notification settings
+notifications_enabled:
+  type: boolean
+  prompt: "Enable notifications?"
+  default: false
+
+notification_config:
+  type: hash
+  prompt: "Notification Configuration"
+  skip_if: "->(answers) { answers['notifications_enabled'] == false }"
+  children:
+    notification_type:
+      type: multi_select
+      prompt: "Select notification channels"
+      options:
+        - "Email"
+        - "Slack"
+        - "SMS"
+        - "Webhook"
+      default: ["Email"]
+      help: "You can select multiple channels"
+
+    admin_email:
+      type: string
+      prompt: "Admin email address"
+      validate: "/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$/"
+      required: true
+      skip_if: "->(answers) { !answers.dig('notification_config', 'notification_type')&.include?('Email') }"
+
+# Additional notes
+notes:
+  type: string
+  prompt: "Any additional notes or comments?"
+  default: "none"
+  help: "Optional field for any extra configuration details"

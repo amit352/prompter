@@ -73,7 +73,51 @@ namespace :prompter do
 
           # Path where the generated configuration YAML will be saved
           config.output_path = Rails.root.join("config", "generated_config.yml").to_s
+          
+          # Flag to look  at config generated after each question, false by default
+          config.debug = false 
         end
+
+        # Custom Processors
+        # ----------------
+        # Define custom processor classes here to dynamically generate options
+        # based on user's previous answers.
+        #
+        # Example processor that filters options based on previous answer:
+        #
+        # class MyCustomProcessor
+        #   def self.filter_options(answers:, config:)
+        #     # Access previous answers
+        #     selected_value = answers['previous_field']
+        #
+        #     # Access config params from schema
+        #     data_file = config['data_file']
+        #
+        #     # Return array of options
+        #     case selected_value
+        #     when 'option_a'
+        #       ['item1', 'item2']
+        #     when 'option_b'
+        #       ['item3', 'item4', 'item5']
+        #     else
+        #       []
+        #     end
+        #   rescue StandardError => e
+        #     puts "Processor error: \#{e.message}"
+        #     []
+        #   end
+        # end
+        #
+        # Usage in schema (config/prompts/schema.yml):
+        #
+        #   my_field:
+        #     type: multi_select
+        #     prompt: "Select items"
+        #     source:
+        #       type: "processor"
+        #       class: "MyCustomProcessor"
+        #       method: "filter_options"
+        #       data_file: "config/data.yml"
       RUBY
     else
       <<~RUBY
@@ -89,6 +133,21 @@ namespace :prompter do
           # Path where the generated configuration YAML will be saved
           config.output_path = File.join(__dir__, "generated_config.yml")
         end
+
+        # Custom Processors
+        # ----------------
+        # Define custom processor classes here or in lib/processors/
+        #
+        # Example:
+        # class MyCustomProcessor
+        #   def self.filter_options(answers:, config:)
+        #     # Your logic here
+        #     []
+        #   end
+        # end
+        #
+        # Or require from lib:
+        # Dir[File.join(__dir__, "..", "lib", "processors", "*.rb")].each { |file| require file }
       RUBY
     end
   end
