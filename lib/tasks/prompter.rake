@@ -73,6 +73,9 @@ namespace :prompter do
 
           # Path where the generated configuration YAML will be saved
           config.output_path = Rails.root.join("config", "generated_config.yml").to_s
+          
+          # Flag to look  at config generated after each question, false by default
+          config.debug = false 
         end
 
         # Custom Processors

@@ -5,27 +5,25 @@ module Prompter
   class Runner
     attr_reader :schema_path, :answers, :prompt
 
-    def initialize(schema_path)
+    def initialize(schema_path, debug: false)
       @schema_path = schema_path
       @schema = YAML.load_file(schema_path)
       @prompt = TTY::Prompt.new
       @answers = {}
+      @debug = debug
     end
 
     def run
-      puts "Starting Prompter for: #{@schema_path}\n\n"
-      puts "Press Ctrl+C at any time to exit\n\n"
+      puts "Starting Prompter for: #{@schema_path}"
+      puts "Press Ctrl+C at any time to exit"
+
+      # Pre-generate the full structure
+      generate_structure(@schema, @answers)
 
       begin
-        @schema.each do |key, config|
-          next unless should_ask?(config)
-          value = ask_question(key, config)
-          @answers[key] = value unless value.nil?
-        end
-
-        puts "\n Final Answers:"
-        @answers.each { |k, v| puts "  #{k}: #{v}" }
-
+        traverse_schema(@schema, @answers)
+        puts "\nFinal Answers:"
+        pp @answers if @debug
         @answers
       rescue Interrupt
         handle_interrupt
@@ -34,25 +32,54 @@ module Prompter
 
     private
 
-    def handle_interrupt
-      puts "\n\nInterrupted by user!"
-      puts "\nCurrent answers:"
-      @answers.each { |k, v| puts "  #{k}: #{v}" }
+    # Recursively generate hash/array structure with defaults
+    def generate_structure(schema, container)
+      schema.each do |key, config|
+        case config["type"]
+        when "hash"
+          container[key] = {}
+          generate_structure(config["children"] || {}, container[key])
+        when "array"
+          length = config["length"]
+          if length.is_a?(String) && length.start_with?("->")
+            length = 0 # dynamic length; will fill during prompt
+          else
+            length = length.to_i
+          end
+          children = config["children"] || {}
+          container[key] = Array.new(length) { {}.tap { |h| generate_structure(children, h) } }
+        else
+          container[key] = config.key?("default") ? config["default"] : nil
+        end
+      end
+    end
 
-      choice = @prompt.select("\nWhat would you like to do?", [
+    # Traverse schema and prompt
+    def traverse_schema(schema, container)
+      schema.each do |key, config|
+        next unless should_ask?(config)
+        ask_question(key, config, container)
+      end
+    end
+
+    def handle_interrupt
+      puts "\nInterrupted by user!"
+      debug_print_full_answers if @debug
+
+      choice = @prompt.select("What would you like to do?", [
         { name: "Save partial results and exit", value: :save },
         { name: "Exit without saving", value: :exit }
       ])
 
       if choice == :save
-        puts "\nPartial results will be saved."
+        puts "Partial results will be saved."
         @answers
       else
-        puts "\nExiting without saving."
+        puts "Exiting without saving."
         exit(1)
       end
     rescue Interrupt
-      puts "\n\nForce exit. No data saved."
+      puts "Force exit. No data saved."
       exit(1)
     end
 
@@ -68,99 +95,125 @@ module Prompter
       end
     end
 
-    def ask_question(key, config, parent_key = nil)
-      qtype = config["type"] || "string"
-      prompt_text = config["prompt"] || key
-      default = config["default"]
-      options = config["options"] || config["choices"]
-      help = config["help"]
-      required = config["required"]
-      source = config["source"]
-      confirm = config["confirm"]
-      validate = config["validate"]
-      convert = config["convert"]
-      transform = config["transform"]
+    def decorated_prompt_text(prompt_text, default)
+      default ? "#{prompt_text} (default: #{default})" : prompt_text
+    end
+
+    def debug_print_full_answers(override = false)
+      return unless @debug || override
+      puts "[DEBUG] Current Answers: #{@answers}\n"
+    end
+
+    # Core prompting method
+    def ask_question(key, config, container)
+      qtype       = config["type"] || "string"
+      prompt_text = decorated_prompt_text(config["prompt"] || key, config["default"])
+      default     = config["default"]
+      options     = config["options"] || config["choices"]
+      help        = config["help"]
+      required    = config["required"]
+      source      = config["source"]
+      confirm     = config["confirm"]
+      validate    = config["validate"]
+      convert     = config["convert"]
+      transform   = config["transform"]
 
       options ||= load_source(source)
-      puts "#{help}" if help
+      puts help if help
 
       value =
         case qtype
-        when "string"
-          prompt.ask(prompt_text, default: default, required: required) do |q|
-            apply_validation(q, validate)
-          end
-        when "integer"
-          prompt.ask(prompt_text, convert: :int, default: default, required: required)
-        when "boolean"
-          prompt.yes?(prompt_text) { |q| q.default(default) }
-        when "select"
-          prompt.select(prompt_text, options, default: default)
-        when "multi_select"
-          prompt.multi_select(prompt_text, options, default: Array(default))
         when "hash"
-          ask_hash(key, prompt_text, config["children"])
+          ask_hash(key, prompt_text, config["children"], container)
+        when "array"
+          ask_array(key, prompt_text, config, container)
+        when "string"
+          @prompt.ask(prompt_text, default: default, required: required) { |q| apply_validation(q, validate) }
+        when "integer"
+          @prompt.ask(prompt_text, convert: :int, default: default, required: required)
+        when "boolean"
+          @prompt.yes?(prompt_text) { |q| q.default(default) }
+        when "select"
+          @prompt.select(prompt_text, options, default: default)
+        when "multi_select"
+          @prompt.multi_select(prompt_text, options, default: Array(default))
         else
-          prompt.ask(prompt_text, default: default)
+          @prompt.ask(prompt_text, default: default)
         end
 
-      # Transform
-      if transform
-        begin
-          fn = eval(transform)
-          value = fn.call(value)
-        rescue StandardError
-          # ignore transform errors
-        end
-      end
-
-      # Convert
-      case convert
-      when "int" then value = value.to_i
-      when "float" then value = value.to_f
-      end
+      # Transform & convert
+      value = eval(transform).call(value) if transform
+      value = value.to_i if convert == "int"
+      value = value.to_f if convert == "float"
 
       # Confirm
-      if confirm && !prompt.yes?("Confirm '#{value}'?")
-        return ask_question(key, config)
-      end
+      value = ask_question(key, config, container) if confirm && !@prompt.yes?("Confirm '#{value}'?")
 
+      # Assign directly to the current container
+      container[key] = value
+
+      debug_print_full_answers
       value
     end
 
-    def ask_hash(parent_key, prompt_text, children)
+    def ask_hash(key, prompt_text, children, container)
+      puts "\n#{prompt_text}:"
+      hash_container = container[key] ||= {}
+
+      children.each do |child_key, child_config|
+        next unless should_ask?(child_config)
+        ask_question(child_key, child_config, hash_container)
+      end
+
+      hash_container
+    end
+
+    def ask_array(key, prompt_text, config, container)
       puts "\n#{prompt_text}:"
 
-      # Initialize parent hash in answers so children can access siblings via dig
-      @answers[parent_key] = {} unless @answers[parent_key]
-
-      result = {}
-      children.each do |k, v|
-        next unless should_ask?(v)
-        val = ask_question(k, v, parent_key)
-        unless val.nil?
-          result[k] = val
-          # Update @answers so subsequent children can access this via dig
-          @answers[parent_key][k] = val
+      # Determine length dynamically if specified as a proc/lambda string
+      length = config["length"]
+      if length.is_a?(String) && length.start_with?("->")
+        begin
+          length = eval(length).call(@answers)
+        rescue StandardError => e
+          puts "Error evaluating array length for '#{key}': #{e.message}"
+          length = 0
         end
       end
-      result
+      length = length.to_i
+      return [] if length <= 0
+
+      children = config["children"] || {}
+      results = []
+
+      length.times do |index|
+        puts "\n--- Entry #{index + 1} of #{length} ---"
+        entry_container = {}
+
+        # Treat every child as a Prompter config, same as hash
+        children.each do |child_key, child_config|
+          next unless should_ask?(child_config)
+          ask_question(child_key, child_config, entry_container)
+        end
+
+        results << entry_container
+      end
+
+      container[key] = results
+      results
     end
 
     def load_source(source)
       return unless source
-      type = source["type"]
-      path = source["path"]
-
-      case type
+      case source["type"]
       when "files"
-        Dir.children(path).select { |f| File.file?(File.join(path, f)) }
+        Dir.children(source["path"]).select { |f| File.file?(File.join(source["path"], f)) }
       when "yaml"
-        yaml_data = YAML.load_file(path)
+        yaml_data = YAML.load_file(source["path"])
         yaml_data.is_a?(Hash) ? yaml_data.keys : yaml_data
       when "proc"
-        fn = eval(source["proc"])
-        fn.call
+        eval(source["proc"]).call
       when "processor"
         load_from_processor(source)
       else
@@ -172,46 +225,27 @@ module Prompter
     end
 
     def load_from_processor(source)
-      class_name = source["class"]
+      class_name  = source["class"]
       method_name = source["method"]
-
-      raise "Processor class name is required" unless class_name
-      raise "Processor method name is required" unless method_name
-
-      # Get the processor class
       processor_class = Object.const_get(class_name)
-
-      # Prepare config hash (all source params except type, class, method)
-      config = source.reject { |k, _| ["type", "class", "method"].include?(k) }
-
-      # Call the processor method with answers and config
+      config = source.reject { |k,_| ["type","class","method"].include?(k) }
       processor_class.public_send(method_name, answers: @answers, config: config)
-    rescue NameError => e
-      puts "Processor class '#{class_name}' not found. Make sure it's defined and loaded."
-      puts "Error: #{e.message}"
-      []
-    rescue NoMethodError => e
-      puts "Method '#{method_name}' not found on #{class_name}."
-      puts "Error: #{e.message}"
-      []
-    rescue StandardError => e
+    rescue NameError, NoMethodError, StandardError => e
       puts "Processor error: #{e.message}"
-      puts e.backtrace.first(3).join("\n  ")
       []
     end
 
     def apply_validation(question, rule)
       return unless rule
-      if rule.is_a?(String) && rule.start_with?("/")
+      if rule.start_with?("/")
         regex = Regexp.new(rule[1..-2])
-        question.validate(->(input) { input.match?(regex) }, "Invalid format")
-      elsif rule.is_a?(String) && rule.start_with?("->")
+        question.validate(->(input){ input.match?(regex) }, "Invalid format")
+      elsif rule.start_with?("->")
         fn = eval(rule)
         question.validate(fn, "Invalid input")
       end
     rescue StandardError => e
       puts "Validation setup error: #{e.message}"
-      nil
     end
   end
 end

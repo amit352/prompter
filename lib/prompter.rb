@@ -36,13 +36,14 @@ module Prompter
     # @param schema_path [String] Path to schema YAML file (optional if configured)
     # @param output_path [String] Path to output file (optional if configured)
     # @return [Hash] The collected answers
-    def run(schema_path = nil, output_path = nil)
+    def run(schema_path: nil, output_path: nil, debug: false)
       schema_path ||= configuration.schema_path
       output_path ||= configuration.output_path
+      debug ||= configuration.debug
 
       raise ArgumentError, "schema_path must be provided or configured" unless schema_path
 
-      runner = Runner.new(schema_path)
+      runner = Runner.new(schema_path, debug: debug)
       answers = runner.run
       if output_path
         File.write(output_path, YAML.dump(answers))
